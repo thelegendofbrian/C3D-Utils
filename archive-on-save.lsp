@@ -1,3 +1,9 @@
+; Archive on save
+; Augments _QSAVE functionality to create an archived version of the file prior to saving.
+; Configurable values:
+;   +archive-threshhold+      : [default = 1 day]   number of days old a file needs to be to get auto-archived (can be fractional)
+;   +archive-edit-threshhold+ : [default = 2 hours] number of days old a file must be opened for to get auto-archived (can be fractional)
+
 (load (findfile "julian.lsp"))
 (vl-load-com)
 
@@ -70,7 +76,9 @@
 ; Find date of most recent "version 2" named archive of specified file
 ; The "version 2" naming convension is defined as "VOID_*_YYYY-MM-DD_hh_mm_ss.*"
 ; More specifcally, with regex: VOID_.*_\d{4}\-\d{2}\-\d{2}_\d{2}-\d{2}-\d{2}\.[^.]*$
-(defun get-last-v2-arch-date (file-dir file-name file-ext / most-recent-arch-date) 
+(defun get-last-v2-arch-date (file-dir file-name file-ext / arch-dir arch-prefix 
+                              arch-list most-recent-arch most-recent-arch-date
+                             ) 
   (setq arch-dir (strcat file-dir "Archive\\"))
   (setq arch-prefix (strcat "VOID_" file-name "_"))
   ; Create a list of all v1 archives for the specified file
@@ -132,10 +140,14 @@
   (- (dtoj date1) (dtoj date2))
 )
 
-(defun get-days-since-arch (file-dir file-name file-ext) 
-  (day-diff 
-    (getvar 'cdate)
-    (get-last-arch-date file-dir file-name file-ext)
+(defun get-days-since-arch (file-dir file-name file-ext / last-arch-date) 
+  (setq last-arch-date (get-last-arch-date file-dir file-name file-ext))
+  (if (not last-arch-date) 
+    (setq last-arch-date 19700101)
+    (day-diff 
+      (getvar 'cdate)
+      last-arch-date
+    )
   )
 )
 
@@ -152,13 +164,14 @@
   (round-mult num (expt 10.0 (- decimals)))
 )
 
-(defun C:QSAVE (/ cmdecho-initial +archive-threshhold+ file-dir file-name-full 
+(defun C:QSAVE (/ cmdecho-initial +archive-threshhold+ +archive-edit-threshhold+ file-dir file-name-full 
                 file-name-full-len start-of-ext file-name file-ext days-since-arch
                ) 
   (setq cmdecho-initial (getvar "cmdecho"))
   (setvar "cmdecho" 0)
   (initdia 1)
   (setq +archive-threshhold+ 1) ; number of days old a file needs to be to get auto-archived (can be fractional)
+  (setq +archive-edit-threshhold+ 0.0833) ; number of days old a file must be opened for to get auto-archived (can be fractional)
 
   ; Check if drawing is saved anywhere
   (if (= (getvar "dwgtitled") 1) 
@@ -174,6 +187,9 @@
       (setq days-since-arch (get-days-since-arch file-dir file-name file-ext))
       ; Print easily readable days-since-arch
       (cond 
+        ((> days-since-arch 18250)
+         (princ "\nDrawing has never been archived.")
+        )
         ((> days-since-arch 365)
          (princ 
            (strcat "\nDrawing last archived " 
@@ -221,9 +237,17 @@
 
       (if (> days-since-arch +archive-threshhold+) 
         (progn 
-          (princ "\nAutomatically archiving drawing prior to saving.\n")
-          (arch-dwg file-dir file-name file-ext)
-          ; TODO: Add error handling
+          (if 
+            (and (> days-since-arch 18250) 
+                 (< (getvar "TDINDWG") +archive-edit-threshhold+)
+            )
+            (princ "\nDrawing is too new to warrant automatic archival.\n")
+            (progn 
+              (princ "\nAutomatically archiving drawing prior to saving.\n")
+              (arch-dwg file-dir file-name file-ext)
+              ; TODO: Add error handling
+            )
+          )
         )
         (princ "\nA recent archive exists for this drawing.\n")
       )
