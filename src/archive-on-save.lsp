@@ -1,9 +1,20 @@
 ; Archive on save
-; Augments _QSAVE functionality to create an archived version of the file prior to saving.
+;
+; Description:
+;   Augments _QSAVE functionality to create an archived version of the file prior to saving.
+;   Tested on Civil 3D 2020.
+;
+; Behavior:
+;   On save, searches for the most recently archived version of the current drawing, saved as ./Archive/VOID_<file-name>_YYYY-MM-DD_hh-mm-ss.<file-extension>, relevative to the directory the file is saved in. If the most recent archive, as determined by filename, not file properties, is older than +archive-threshhold+ days, the file is archived into the ./Archive/ folder with a filename containing the time of archival, not the file's last modification property. If the file is newly created, defined as having been edited less than +archive-edit-threshhold+ days and created less than +archive-threshhold+ days ago, the file will not be archived.
+;
 ; Configurable values:
 ;   +archive-threshhold+      : [default = 1 day]   number of days old a file needs to be to get auto-archived (can be fractional)
 ;   +archive-edit-threshhold+ : [default = 2 hours] number of days old a file must be opened for to get auto-archived (can be fractional)
+;
+; TODO: Add error handling
+; TODO: Convert archive function to command for use outside of saving
 
+; Load extensions
 (load (findfile "julian.lsp"))
 (vl-load-com)
 
@@ -122,12 +133,12 @@
   (setq last-v1-arch-date (get-last-v1-arch-date file-dir file-name file-ext))
   (setq last-v2-arch-date (get-last-v2-arch-date file-dir file-name file-ext))
 
-  ; Return more recent of the two
+  ; Return most recent of the two
   (if (> last-v1-arch-date last-v2-arch-date) 
     (setq last-arch-date last-v1-arch-date)
     (setq last-arch-date last-v2-arch-date)
   )
-  ; If check if archive was found
+  ; Check if archive was found
   (if (not last-arch-date) 
     (setq last-arch-date nil)
     (setq last-arch-date (distof last-arch-date))
@@ -164,14 +175,16 @@
   (round-mult num (expt 10.0 (- decimals)))
 )
 
-(defun C:QSAVE (/ cmdecho-initial +archive-threshhold+ +archive-edit-threshhold+ file-dir file-name-full 
-                file-name-full-len start-of-ext file-name file-ext days-since-arch
+(defun C:QSAVE (/ cmdecho-initial +archive-threshhold+ +fifty-years+ 
+                +archive-edit-threshhold+ file-dir file-name-full file-name-full-len 
+                start-of-ext file-name file-ext days-since-arch
                ) 
   (setq cmdecho-initial (getvar "cmdecho"))
   (setvar "cmdecho" 0)
   (initdia 1)
   (setq +archive-threshhold+ 1) ; number of days old a file needs to be to get auto-archived (can be fractional)
   (setq +archive-edit-threshhold+ 0.0833) ; number of days old a file must be opened for to get auto-archived (can be fractional)
+  (setq +fifty-years+ 18250) ; number of days in 50 years. Treats >50 year old archive as non-existent
 
   ; Check if drawing is saved anywhere
   (if (= (getvar "dwgtitled") 1) 
@@ -187,7 +200,7 @@
       (setq days-since-arch (get-days-since-arch file-dir file-name file-ext))
       ; Print easily readable days-since-arch
       (cond 
-        ((> days-since-arch 18250)
+        ((> days-since-arch +fifty-years+)
          (princ "\nDrawing has never been archived.")
         )
         ((> days-since-arch 365)
@@ -238,8 +251,11 @@
       (if (> days-since-arch +archive-threshhold+) 
         (progn 
           (if 
-            (and (> days-since-arch 18250) 
+            (and (> days-since-arch +fifty-years+) 
                  (< (getvar "TDINDWG") +archive-edit-threshhold+)
+                 (> +archive-threshhold+ 
+                    (day-diff (getvar "date") (getvar "tdcreate"))
+                 )
             )
             (princ "\nDrawing is too new to warrant automatic archival.\n")
             (progn 
