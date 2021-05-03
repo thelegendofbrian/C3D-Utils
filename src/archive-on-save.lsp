@@ -55,7 +55,7 @@
   (setq arch-prefix (strcat "VOID-" file-name "-"))
   ; Create a list of all v1 archives for the specified file
   (setq arch-list (vl-directory-files arch-dir 
-                                      (strcat arch-prefix "*." file-ext)
+                                      (strcat arch-prefix "????-??-??." file-ext)
                                       1
                   )
   )
@@ -94,7 +94,7 @@
   (setq arch-prefix (strcat "VOID_" file-name "_"))
   ; Create a list of all v1 archives for the specified file
   (setq arch-list (vl-directory-files arch-dir 
-                                      (strcat arch-prefix "*." file-ext)
+                                      (strcat arch-prefix "????-??-??_??-??-??." file-ext)
                                       1
                   )
   )
