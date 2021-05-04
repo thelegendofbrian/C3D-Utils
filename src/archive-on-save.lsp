@@ -214,7 +214,7 @@
         ((> days-since-arch 30)
          (princ 
            (strcat "\nDrawing last archived " 
-                   (rtos (round-num days-since-arch 1) 2)
+                   (rtos (round-num (/ days-since-arch 30) 1) 2)
                    " month(s) ago."
            )
          )
