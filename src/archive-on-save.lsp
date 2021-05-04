@@ -3,16 +3,28 @@
 ; Description:
 ;   Augments _QSAVE functionality to create an archived version of the file prior to saving.
 ;   Tested on Civil 3D 2020.
+;   Author: Brian C.
 ;
 ; Behavior:
-;   On save, searches for the most recently archived version of the current drawing, saved as ./Archive/VOID_<file-name>_YYYY-MM-DD_hh-mm-ss.<file-extension>, relevative to the directory the file is saved in. If the most recent archive, as determined by filename, not file properties, is older than +archive-threshhold+ days, the file is archived into the ./Archive/ folder with a filename containing the time of archival, not the file's last modification property. If the file is newly created, defined as having been edited less than +archive-edit-threshhold+ days and created less than +archive-threshhold+ days ago, the file will not be archived.
+;   On save, searches for the most recently archived version of the current drawing, saved as
+;   ./Archive/VOID_<file-name>_YYYY-MM-DD_hh-mm-ss.<file-extension>, relevative to the directory the
+;   file is saved in. If the most recent archive, as determined by filename, not file properties, is
+;   older than +archive-threshhold+ days, the file is archived into the ./Archive/ folder with a
+;   filename containing the time of archival, not the file's last modification property. If the file is
+;   newly created, defined as having been edited less than +archive-edit-threshhold+ days and created
+;   less than +archive-threshhold+ days ago, the file will not be archived.
+
 ;
 ; Configurable values:
-;   +archive-threshhold+      : [default = 1 day]   number of days old a file needs to be to get auto-archived (can be fractional)
-;   +archive-edit-threshhold+ : [default = 2 hours] number of days old a file must be opened for to get auto-archived (can be fractional)
+;   +archive-threshhold+      : [default = 1 day]   number of days old a file needs to be to get 
+;                                                   auto-archived (can be fractional)
+;   +archive-edit-threshhold+ : [default = 2 hours] number of days old a file must be opened for 
+;                                                   to get auto-archived (can be fractional)
 ;
 ; TODO: Add error handling
 ; TODO: Convert archive function to command for use outside of saving
+; TODO: Add "C3DU:" prefix on function names to avoid conflicts
+; TODO: Consider making +archive-threshhold+ and +archive-edit-threshhold+ global
 
 ; Load extensions
 (load (findfile "julian.lsp"))
@@ -20,9 +32,30 @@
 
 (command "undefine" "_QSAVE")
 
+;
+; Externally sourced function declarations
+;
+
+; rtos wrapper  -  Lee Mac
+; A wrapper for the rtos function to negate the effect of DIMZIN
+; http://www.lee-mac.com/consistentrtos.html
+(defun LM:rtos ( real units prec / dimzin result )
+    (setq dimzin (getvar 'dimzin))
+    (setvar 'dimzin 0)
+    (setq result (vl-catch-all-apply 'rtos (list real units prec)))
+    (setvar 'dimzin dimzin)
+    (if (not (vl-catch-all-error-p result))
+        result
+    )
+)
+
+;
+; Function declarations
+;
+
 ; Return date as list of strings '(YYYY MM DD hh mm ss)
 (defun get-date-string (/ date-string YYYY MM DD H M S) 
-  (setq date-string (rtos (getvar "cdate") 2 6))
+  (setq date-string (LM:rtos (getvar "cdate") 2 6))
   (setq YYYY (substr date-string 1 4)
         MM   (substr date-string 5 2)
         DD   (substr date-string 7 2)
@@ -162,18 +195,9 @@
   )
 )
 
-; Rounds number to the nearest multiple "mult"
-; Round Multiple  -  Lee Mac
-; Adapted from http://www.lee-mac.com/round.html
-(defun round-mult (num mult) 
-  (* mult (atoi (rtos (/ num (float mult)) 2 0)))
-)
-; Round number to specified decimal places
-; Round To  -  Lee Mac
-; Adapted from http://www.lee-mac.com/round.html
-(defun round-num (num decimals) 
-  (round-mult num (expt 10.0 (- decimals)))
-)
+;
+; Command declaration
+;
 
 (defun C:QSAVE (/ cmdecho-initial +archive-threshhold+ +fifty-years+ 
                 +archive-edit-threshhold+ file-dir file-name-full file-name-full-len 
@@ -206,7 +230,7 @@
         ((> days-since-arch 365)
          (princ 
            (strcat "\nDrawing last archived " 
-                   (rtos (round-num days-since-arch 1) 2)
+                   (LM:rtos days-since-arch 2 1)
                    " year(s) ago."
            )
          )
@@ -214,7 +238,7 @@
         ((> days-since-arch 30)
          (princ 
            (strcat "\nDrawing last archived " 
-                   (rtos (round-num (/ days-since-arch 30) 1) 2)
+                   (LM:rtos(/ days-since-arch 30) 2 1)
                    " month(s) ago."
            )
          )
@@ -222,7 +246,7 @@
         ((> days-since-arch 2)
          (princ 
            (strcat "\nDrawing last archived " 
-                   (rtos (round-num days-since-arch 1) 2)
+                   (LM:rtos days-since-arch 2 1)
                    " days(s) ago."
            )
          )
@@ -230,7 +254,7 @@
         ((> days-since-arch 0.08333)
          (princ 
            (strcat "\nDrawing last archived " 
-                   (rtos (round-num (* 24 days-since-arch) 1) 2)
+                   (LM:rtos (* 24 days-since-arch) 2 1)
                    " hours(s) ago."
            )
          )
@@ -238,7 +262,7 @@
         ((> days-since-arch 0.000694)
          (princ 
            (strcat "\nDrawing last archived " 
-                   (rtos (round-num (* 1440 days-since-arch) 1) 2)
+                   (LM:rtos (* 1440 days-since-arch) 2 1)
                    " minutes(s) ago."
            )
          )
