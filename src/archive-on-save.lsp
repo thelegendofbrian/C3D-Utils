@@ -13,7 +13,6 @@
 ;   filename containing the time of archival, not the file's last modification property. If the file is
 ;   newly created, defined as having been edited less than +archive-edit-threshhold+ days and created
 ;   less than +archive-threshhold+ days ago, the file will not be archived.
-
 ;
 ; Configurable values:
 ;   +archive-threshhold+      : [default = 1 day]   number of days old a file needs to be to get 
@@ -39,14 +38,14 @@
 ; rtos wrapper  -  Lee Mac
 ; A wrapper for the rtos function to negate the effect of DIMZIN
 ; http://www.lee-mac.com/consistentrtos.html
-(defun LM:rtos ( real units prec / dimzin result )
-    (setq dimzin (getvar 'dimzin))
-    (setvar 'dimzin 0)
-    (setq result (vl-catch-all-apply 'rtos (list real units prec)))
-    (setvar 'dimzin dimzin)
-    (if (not (vl-catch-all-error-p result))
-        result
-    )
+(defun LM:rtos (real units prec / dimzin result) 
+  (setq dimzin (getvar 'dimzin))
+  (setvar 'dimzin 0)
+  (setq result (vl-catch-all-apply 'rtos (list real units prec)))
+  (setvar 'dimzin dimzin)
+  (if (not (vl-catch-all-error-p result)) 
+    result
+  )
 )
 
 ;
@@ -127,7 +126,10 @@
   (setq arch-prefix (strcat "VOID_" file-name "_"))
   ; Create a list of all v1 archives for the specified file
   (setq arch-list (vl-directory-files arch-dir 
-                                      (strcat arch-prefix "????-??-??_??-??-??." file-ext)
+                                      (strcat arch-prefix 
+                                              "????-??-??_??-??-??."
+                                              file-ext
+                                      )
                                       1
                   )
   )
@@ -238,7 +240,7 @@
         ((> days-since-arch 30)
          (princ 
            (strcat "\nDrawing last archived " 
-                   (LM:rtos(/ days-since-arch 30) 2 1)
+                   (LM:rtos (/ days-since-arch 30) 2 1)
                    " month(s) ago."
            )
          )
@@ -298,4 +300,32 @@
   (setvar "cmdecho" cmdecho-initial)
   (princ)
 )
+
+(defun C:ARCHIVEDRAWING (/ cmdecho-initial file-dir file-name-full file-name-full-len start-of-ext 
+                         file-name file-ext
+                        ) 
+  (setq cmdecho-initial (getvar "cmdecho"))
+  (setvar "cmdecho" 0)
+  (initdia 1)
+  
+  ; Check if drawing is saved anywhere
+  (if (= (getvar "dwgtitled") 1) 
+    (progn
+      (setq file-dir (getvar "dwgprefix")) ; H:\\12345-Project\\
+      (setq file-name-full (getvar "dwgname")) ; 12345-MSTR.dwg
+      ; Separate filename from extension
+      (setq file-name-full-len (strlen file-name-full))
+      (setq start-of-ext (vl-string-position (ascii ".") file-name-full nil t))
+      (setq file-name (substr file-name-full 1 start-of-ext)) ; 12345-MSTR
+      (setq file-ext (substr file-name-full (+ start-of-ext 2))) ; dwg
+
+      (arch-dwg file-dir file-name file-ext)
+      (setvar "cmdecho" cmdecho-initial)
+    )
+    (alert "This drawing is unsaved and cannot be archived prior to saving.")
+    (princ "\nThis drawing is unsaved and cannot be archived prior to saving.\n")
+  )
+  (princ)
+)
+
 (princ)
