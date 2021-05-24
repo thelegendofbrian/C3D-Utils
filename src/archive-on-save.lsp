@@ -23,6 +23,7 @@
 ; =============================================================================
 ;
 ; Archive on save
+; https://github.com/thelegendofbrian/C3D-Utils
 ;
 ; Description:
 ;   Augments _QSAVE functionality to create an archived version of the file prior to saving.
