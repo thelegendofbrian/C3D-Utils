@@ -346,8 +346,10 @@
       (arch-dwg file-dir file-name file-ext)
       (setvar "cmdecho" cmdecho-initial)
     )
-    (alert "This drawing is unsaved and cannot be archived prior to saving.")
-    (princ "\nThis drawing is unsaved and cannot be archived prior to saving.\n")
+    (progn 
+      (alert "This drawing is unsaved and cannot be archived prior to saving.")
+      (princ "\nThis drawing is unsaved and cannot be archived prior to saving.\n")
+    )
   )
   (princ)
 )
